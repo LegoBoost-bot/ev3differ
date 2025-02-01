@@ -37,6 +37,8 @@ fn main() -> io::Result<()> {
             });
 
             extract(File::open(src)?, &dir, true).unwrap();
+
+            eprintln!("Successfully extracted into {}", dir.display());
         }
         Command::Archive { src, dst } => {
             let filename = match dst {
@@ -44,6 +46,8 @@ fn main() -> io::Result<()> {
                 None => PathBuf::from(src.with_extension("ev3")),
             };
             zip_create_from_directory(&filename, &src)?;
+
+            eprintln!("Successfully archived into {}", filename.display());
         }
     }
 
