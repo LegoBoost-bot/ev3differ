@@ -1,47 +1,28 @@
 use std::{
-    fs::{self, File}, io::{self, Read, Seek, Write}, path::{Path, PathBuf}
+    env::current_dir, fs::{self, File}, io::{self, Read, Seek, Write}, path::Path, process::Command
 };
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use walkdir::{DirEntry, WalkDir};
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[command(subcommand)]
-    cmd: Command,
-}
-
-#[derive(Subcommand, Clone)]
-enum Command {
-    /// Extract an EV3 archive to a directory
-    Extract { src: PathBuf, dst: Option<PathBuf> },
-
-    /// Put the contents of a directory in an EV3 file
-    Archive { src: PathBuf, dst: Option<PathBuf> },
+    #[clap(trailing_var_arg=true, allow_hyphen_values=true)]
+    git: Vec<String>,
 }
 
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
-    match cli.cmd {
-        Command::Extract { src , dst} => {
-            let out_dir = dst.unwrap_or_else(|| src.with_extension(""));
-            extract_file(&src, &out_dir)?;
+    let pwd = current_dir()?;
+    let file = pwd.with_extension("ev3");
 
-            eprintln!("Successfully extracted into {}", src.with_extension("").display());
-        }
-        Command::Archive { src, dst } => {
-            let filename = match dst {
-                Some(dst) => dst,
-                None => PathBuf::from(src.with_extension("ev3")),
-            };
-            archive_file(src, &filename)?;
+    extract_file(&file, current_dir().unwrap())?;
+    Command::new("git").args(cli.git).spawn()?.wait()?;
 
-            eprintln!("Successfully archived into {}", filename.display());
-        }
-    }
+    archive_file(&pwd, &file)?;
 
     Ok(())
 }
@@ -118,7 +99,7 @@ fn extract_file(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
                 }
             }
 
-            let mut outfile = File::create(&outpath).unwrap();
+            let mut outfile = match File::create(&outpath) { Ok(f) => f, Err(_) => { eprintln!("Falied to extract '{}'", outpath.display()); continue}};
             io::copy(&mut file, &mut outfile)?;
         }
 
