@@ -1,15 +1,19 @@
 use std::{
-    env::current_dir, fs::{self, File}, io::{self, Read, Seek, Write}, path::Path, process::Command
+    env::current_dir,
+    fs::{self, File},
+    io::{self, Read, Seek, Write},
+    path::Path,
+    process::Command,
 };
 
 use clap::Parser;
 use walkdir::{DirEntry, WalkDir};
-use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
+use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[clap(trailing_var_arg=true, allow_hyphen_values=true)]
+    #[clap(trailing_var_arg = true, allow_hyphen_values = true)]
     git: Vec<String>,
 }
 
@@ -27,7 +31,11 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn zip_dir(it: &mut dyn Iterator<Item = DirEntry>, prefix: impl AsRef<Path>, writer: impl Write + Seek) -> io::Result<()> {
+fn zip_dir(
+    it: &mut dyn Iterator<Item = DirEntry>,
+    prefix: impl AsRef<Path>,
+    writer: impl Write + Seek,
+) -> io::Result<()> {
     let mut zip = ZipWriter::new(writer);
     let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
 
@@ -57,7 +65,10 @@ fn zip_dir(it: &mut dyn Iterator<Item = DirEntry>, prefix: impl AsRef<Path>, wri
 
 fn archive_file(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
     if !src.as_ref().is_dir() {
-        return Err(io::Error::new(io::ErrorKind::NotADirectory, "cannot archive single files"));
+        return Err(io::Error::new(
+            io::ErrorKind::NotADirectory,
+            "cannot archive single files",
+        ));
     }
 
     let file = File::create(dst)?;
@@ -99,19 +110,26 @@ fn extract_file(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
                 }
             }
 
-            let mut outfile = match File::create(&outpath) { Ok(f) => f, Err(_) => { eprintln!("Falied to extract '{}'", outpath.display()); continue}};
+            let mut outfile = match File::create(&outpath) {
+                Ok(f) => f,
+                Err(_) => {
+                    eprintln!("Falied to extract '{}'", outpath.display());
+                    continue;
+                }
+            };
             io::copy(&mut file, &mut outfile)?;
         }
 
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionExt;
+            use std::os::unix::fs::PermissionsExt;
 
             if let Some(mode) = file.unix_mode() {
-                fs::set_permissions(&outpath, fs::Permissions::from_mode(mode).unwrap())
+                fs::set_permissions(&outpath, fs::Permissions::from_mode(mode)).unwrap();
             }
         }
     }
 
     Ok(())
 }
+
