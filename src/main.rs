@@ -7,6 +7,7 @@ use std::{
 };
 
 use clap::Parser;
+use git2::Repository;
 use walkdir::{DirEntry, WalkDir};
 use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
@@ -15,18 +16,56 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 struct Cli {
     #[clap(trailing_var_arg = true, allow_hyphen_values = true)]
     git: Vec<String>,
+
+    #[arg(short, long)]
+    init: Option<String>,
 }
 
-fn main() -> io::Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     let pwd = current_dir()?;
     let file = pwd.with_extension("ev3");
 
-    extract_file(&file, current_dir().unwrap())?;
-    Command::new("git").args(cli.git).spawn()?.wait()?;
-
+    if let Some(url) = cli.init {
+        Repository::clone(&url, &pwd)?;
+    } else {
+        cleanup(&pwd)?;
+        extract_file(&file, current_dir().unwrap())?;
+        Command::new("git").args(cli.git).spawn()?.wait()?;
+    }
     archive_file(&pwd, &file)?;
+    post(&pwd)?;
+
+    Ok(())
+}
+
+fn post(src: impl AsRef<Path>) -> io::Result<()> {
+    for f in WalkDir::new(src)
+        .into_iter()
+        .flatten()
+        .filter(|e| e.depth() == 1)
+    {
+        if f.path().is_dir() && f.file_name() == ".git" {
+            fs::rename(f.path(), f.path().with_file_name(".ev3git"))?;
+        }
+    }
+
+    Ok(())
+}
+
+fn cleanup(src: impl AsRef<Path>) -> io::Result<()> {
+    for f in WalkDir::new(src)
+        .into_iter()
+        .flatten()
+        .filter(|e| e.depth() == 1)
+    {
+        if f.path().is_dir() && f.file_name() == ".ev3git" {
+            fs::rename(f.path(), f.path().with_file_name(".git"))?;
+        } else {
+            fs::remove_file(f.path())?;
+        }
+    }
 
     Ok(())
 }
@@ -132,4 +171,3 @@ fn extract_file(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
 
     Ok(())
 }
-
