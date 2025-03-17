@@ -73,7 +73,7 @@ fn make_version(src: impl AsRef<Path>) -> io::Result<()> {
 
         let new = regex.replace_all(&buf, |c: &Captures| {
             is_modified = true;
-            format!("{} // EV3DIFFER track {}", &c[0], &c[1])
+            format!("{} <!-- EV3DIFFER track {} -->", &c[0], &c[1])
         });
 
         if is_modified {
@@ -95,7 +95,7 @@ fn update_commit_id(src: impl AsRef<Path>) -> Result<(), git2::Error> {
         .with_timezone(&Local);
 
     let regex = Regex::new(
-        r#"<ConfigurableMethodTerminal\s+ConfiguredValue="(.*)">\s*\/\/ EV3DIFFER track ([a-z]*)"#,
+        r#"<ConfigurableMethodTerminal\s+ConfiguredValue="(.*)">\s*<!--\s*EV3DIFFER track ([a-z]+)\s*-->"#,
     )
     .unwrap();
 
@@ -125,11 +125,10 @@ fn update_commit_id(src: impl AsRef<Path>) -> Result<(), git2::Error> {
                     o => panic!("Unknown tracking type `{o}`"),
                 };
 
-                format!(r#"<ConfigurableMethodTerminal ConfiguredValue="{inside}"> // EV3DIFFER track {track}"#)
+                format!(r#"<ConfigurableMethodTerminal ConfiguredValue="{inside}"> <!-- EV3DIFFER track {track} -->"#)
             });
 
         if is_modified {
-            eprintln!("Modifying file {}", f.display());
             File::create(&f).unwrap().write(new.as_bytes()).unwrap();
         }
     }
