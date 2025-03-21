@@ -119,8 +119,8 @@ fn update_commit_id(src: impl AsRef<Path>) -> Result<(), git2::Error> {
                 let track = &c[2];
                 let inside = match track {
                     "time" => format!("{}", time.format("%a %d/%m/%Y %H:%M")),
-                    "name" => head.shorthand().unwrap().into(),
-                    "msg" => commit.message().unwrap().into(),
+                    "name" => head.shorthand().unwrap().lines().next().unwrap().to_string(),
+                    "msg" => commit.message().unwrap().lines().next().unwrap().to_string(),
                     "hash" => commit.id().to_string()[0..7].to_string(),
                     o => panic!("Unknown tracking type `{o}`"),
                 };
